@@ -88,7 +88,7 @@ export default function Index() {
   const handleLogin = () => {
     console.log("Login pressed");
     // Navigate to login screen
-    router.push('/signin');
+    router.push('/ConductorDashboard');
   };
 
   const handleRegister = () => {
