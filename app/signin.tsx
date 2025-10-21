@@ -119,6 +119,21 @@ export default function SignIn() {
         console.log("Login successful:", data.user);
         Alert.alert("Success", data.message);
         
+        setTimeout(() => {
+          switch(data.user.role) {
+              case 'Passenger':
+                router.replace('/PassengerDashboard');
+                break;
+              case 'Conductor':
+                router.replace('/ConductorDashboard');
+                break;
+              case 'Bus Owner':
+                router.replace('/OwnerDashboard');
+                break;
+              default:
+                router.replace('/signin');
+            }
+        }, 1000);
         // Navigate to home/dashboard based on user role
         // router.push('/home');
         // or based on role: router.push(`/${data.user.role.toLowerCase()}-dashboard`);
