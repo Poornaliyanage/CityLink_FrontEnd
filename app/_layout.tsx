@@ -14,8 +14,15 @@ export default function RootLayout() {
       <Stack.Screen name="Seat_Select" />
       <Stack.Screen name="ConductorShowTimetable" />
       <Stack.Screen name="ConductorTimetable" />
-      <Stack.Screen name="OwnerDashboard" />
       <Stack.Screen name="Available_Bus" />
+      <Stack.Screen name="PassengerProfileEditor" />
+      <Stack.Screen name="RealTimeTrackingMap" />
+      <Stack.Screen name="BusTimeTable" />
+      <Stack.Screen name="BusOwnerViewBus" />
+      <Stack.Screen name="OwnerDashboard" />
+      <Stack.Screen name="OwnerBusTracking" />
+      <Stack.Screen name="BusOwnerProfileEditor" />
+      <Stack.Screen name="BusOwnerEditBus" />
     </Stack>
   );
 }
