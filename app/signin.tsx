@@ -96,16 +96,46 @@ export default function SignIn() {
     }
 
     setIsLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
-      console.log("Sign in attempt:", { email, password });
-      // Add your authentication logic here
-      Alert.alert("Success", "Welcome back to CityLink!");
-    }, 2000);
-  };
 
+    try {
+      const response = await fetch("http://172.20.10.6:5000/api/auth/login", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ 
+          email: email.toLowerCase().trim(), 
+          password: password 
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        // Store token and user data (you'll need to install async-storage)
+        // await AsyncStorage.setItem('token', data.token);
+        // await AsyncStorage.setItem('user', JSON.stringify(data.user));
+        
+        console.log("Login successful:", data.user);
+        Alert.alert("Success", data.message);
+        
+        // Navigate to home/dashboard based on user role
+        // router.push('/home');
+        // or based on role: router.push(`/${data.user.role.toLowerCase()}-dashboard`);
+        
+      } else {
+        Alert.alert("Error", data.message || "Login failed. Please try again.");
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      Alert.alert(
+        "Connection Error", 
+        "Unable to connect to the server. Please check your internet connection and try again."
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
   const handleForgotPassword = () => {
     console.log("Forgot password pressed");
     // Navigate to forgot password screen

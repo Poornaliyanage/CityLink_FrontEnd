@@ -26,7 +26,7 @@ interface FormData {
   lastName: string;
   nicPassport: string;
   contactNumber: string;
-  emergencyContact: string;
+  email: string;
   password: string;
   confirmPassword: string;
   role: UserRole;
@@ -43,7 +43,7 @@ export default function Register() {
     lastName: "",
     nicPassport: "",
     contactNumber: "",
-    emergencyContact: "",
+    email: "",
     password: "",
     confirmPassword: "",
     role: null,
@@ -119,10 +119,6 @@ export default function Register() {
       Alert.alert("Error", "Please enter your contact number");
       return false;
     }
-    if (!formData.emergencyContact.trim()) {
-      Alert.alert("Error", "Please enter your emergency contact");
-      return false;
-    }
     if (!formData.password) {
       Alert.alert("Error", "Please enter a password");
       return false;
@@ -144,28 +140,42 @@ export default function Register() {
 
   const handleRegister = async () => {
     if (!validateForm()) return;
-
     setIsLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
+
+    try {
+      const response = await fetch("http://172.20.10.6:5000/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          nicPassport: formData.nicPassport,
+          contactNumber: formData.contactNumber,
+          email: formData.email,
+          password: formData.password,
+          role: formData.role,
+        }),
+      });
+
+      const data = await response.json();
       setIsLoading(false);
-      console.log("Registration data:", formData);
-      Alert.alert(
-        "Success", 
-        `Welcome to CityLink, ${formData.firstName}! Your ${formData.role} account has been created.`,
-        [
-          {
-            text: "Continue",
-            onPress: () => {
-              // Navigate to sign in or dashboard
-              router.back();
-            }
-          }
-        ]
-      );
-    }, 2000);
+
+      if (response.ok) {
+        Alert.alert(
+          "Success",
+          `Welcome to CityLink, ${formData.firstName}! Your ${formData.role} account has been created.`,
+          [{ text: "Continue", onPress: () => router.push("/signin") }]
+        );
+      } else {
+        Alert.alert("Error", data.message || "Registration failed");
+      }
+    } catch (error) {
+      console.error(error);
+      setIsLoading(false);
+      Alert.alert("Error", "Unable to connect to the server");
+    }
   };
+
 
   const handleGoBack = () => {
     router.back();
@@ -523,19 +533,10 @@ export default function Register() {
                   />
 
                   <InputField
-                    label="Emergency Contact Number"
-                    placeholder="Enter emergency phone number"
-                    value={formData.contactNumber}
-                    onChangeText={(text: string) => updateFormData("contactNumber", text)}
-                    icon="call-outline"
-                    keyboardType="phone-pad"
-                  />
-
-                  <InputField
                     label="Email Address"
                     placeholder="Email Address"
-                    value={formData.emergencyContact}
-                    onChangeText={(text: string) => updateFormData("emergencyContact", text)}
+                    value={formData.email}
+                    onChangeText={(text: string) => updateFormData("email", text)}
                     icon="mail-outline"
                   />
 

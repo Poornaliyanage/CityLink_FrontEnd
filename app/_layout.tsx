@@ -9,6 +9,8 @@ export default function RootLayout() {
       <Stack.Screen name="PassengerDashboard" />
       <Stack.Screen name="ConductorDashboard" />
       <Stack.Screen name="SeatReservation" />
+      <Stack.Screen name="ScanQR" />
+      <Stack.Screen name="TimeTablePassenger" />
     </Stack>
   );
 }

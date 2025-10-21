@@ -3,14 +3,14 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    Animated,
-    Dimensions,
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    Text,
-    TouchableOpacity,
-    View,
+  Animated,
+  Dimensions,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 const { width, height } = Dimensions.get("window");
@@ -90,7 +90,7 @@ export default function ConductorDashboard() {
       subtitle: "Live bus location & ETA",
       icon: "qr-code-outline",
       gradientColors: ["#f093fb", "#f5576c"],
-      route: "/track-bus",
+      route: "/ScanQR",
     },
     {
       id: "3",
