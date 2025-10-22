@@ -3,14 +3,14 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    Animated,
-    Dimensions,
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    Text,
-    TouchableOpacity,
-    View,
+  Animated,
+  Dimensions,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 const { width, height } = Dimensions.get("window");
@@ -82,7 +82,7 @@ export default function PassengerDashboard() {
       subtitle: "Check schedules and routes",
       icon: "time-outline",
       gradientColors: ["#ea669bff", "#764ba2"],
-      route: "/timetable",
+      route: "/BusTimeTable",
     },
     {
       id: "2",
@@ -90,7 +90,7 @@ export default function PassengerDashboard() {
       subtitle: "Live bus location & ETA",
       icon: "location-outline",
       gradientColors: ["#f093fb", "#f5576c"],
-      route: "/track-bus",
+      route: "/RealTimeTrackingMap",
     },
     {
       id: "3",
@@ -110,7 +110,7 @@ export default function PassengerDashboard() {
 
   const handleProfile = () => {
     console.log("Profile pressed");
-    // router.push('/profile');
+    router.push('/PassengerProfileEditor');
   };
 
   const handleNotifications = () => {
@@ -121,7 +121,7 @@ export default function PassengerDashboard() {
   const handleLogout = () => {
     console.log("Logout pressed");
     // Handle logout logic
-    // router.replace('/');
+    router.replace('/signin');
   };
 
   const ActionCard = ({ action, index }: { action: DashboardAction; index: number }) => {

@@ -3,14 +3,14 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    Animated,
-    Dimensions,
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    Text,
-    TouchableOpacity,
-    View,
+  Animated,
+  Dimensions,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 const { width, height } = Dimensions.get("window");
@@ -24,7 +24,7 @@ type DashboardAction = {
   route: string;
 };
 
-export default function PassengerDashboard() {
+export default function OwnerDashboard() {
   const router = useRouter();
   const [userName] = useState("Owner"); // This would come from user context/state
   const [greeting, setGreeting] = useState("");
@@ -103,7 +103,7 @@ export default function PassengerDashboard() {
 
   const handleProfile = () => {
     console.log("Profile pressed");
-    // router.push('/BusOwnerProfileEditor');
+    router.push('/BusOwnerProfileEditor');
   };
 
   const handleNotifications = () => {
@@ -114,7 +114,7 @@ export default function PassengerDashboard() {
   const handleLogout = () => {
     console.log("Logout pressed");
     // Handle logout logic
-    // router.replace('/');
+    router.replace('/signin');
   };
 
   const ActionCard = ({ action, index }: { action: DashboardAction; index: number }) => {
