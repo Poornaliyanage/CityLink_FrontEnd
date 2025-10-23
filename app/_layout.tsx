@@ -23,6 +23,11 @@ export default function RootLayout() {
       <Stack.Screen name="OwnerBusTracking" />
       <Stack.Screen name="BusOwnerProfileEditor" />
       <Stack.Screen name="BusOwnerEditBus" />
+      <Stack.Screen name="AdminDashboard" />
+      <Stack.Screen name="AdminManageBuses" />
+      <Stack.Screen name="AdminManageBusNavigate" />
+      <Stack.Screen name="AdminManageTimetable" />
+      <Stack.Screen name="AdminManageUsers" />
     </Stack>
   );
 }

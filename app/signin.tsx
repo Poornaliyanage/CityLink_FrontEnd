@@ -130,6 +130,9 @@ export default function SignIn() {
               case 'Bus Owner':
                 router.replace('/OwnerDashboard');
                 break;
+              case 'Admin':
+                router.replace('/AdminDashboard');
+                break;
               default:
                 router.replace('/signin');
             }

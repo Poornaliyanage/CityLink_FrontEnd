@@ -150,8 +150,8 @@ export default function SeatReservation() {
     setIsLoadingLocations(true);
     try {
       const [startResponse, endResponse] = await Promise.all([
-        fetch(`${baseUrl}/seat-reservations/start-locations`),
-        fetch(`${baseUrl}/seat-reservations/end-locations`)
+        fetch(`${baseUrl}/seat-reservation/start-locations`),
+        fetch(`${baseUrl}/seat-reservation/end-locations`)
       ]);
 
       if (startResponse.ok && endResponse.ok) {
@@ -1004,6 +1004,20 @@ export default function SeatReservation() {
           {/* Modals */}
           <CalendarModal />
           <ServiceDropdown />
+          <LocationDropdown 
+            visible={showStartDropdown}
+            locations={startLocations}
+            onSelect={(location) => handleLocationSelect('from', location)}
+            onClose={() => setShowStartDropdown(false)}
+            type="from"
+          />
+          <LocationDropdown 
+            visible={showEndDropdown}
+            locations={endLocations}
+            onSelect={(location) => handleLocationSelect('to', location)}
+            onClose={() => setShowEndDropdown(false)}
+            type="to"
+          />
         </LinearGradient>
       </>
     );
