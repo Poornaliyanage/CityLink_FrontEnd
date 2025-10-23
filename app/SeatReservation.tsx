@@ -190,6 +190,25 @@ export default function SeatReservation() {
     return date.toLocaleDateString('en-US', options);
   };
 
+    // For API/database (YYYY-MM-DD format)
+  const formatDateForAPI = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // For UI display (e.g., "Wed, Jan 15, 2025")
+  const formatDateForDisplay = (date: Date): string => {
+    const options: Intl.DateTimeFormatOptions = {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    };
+    return date.toLocaleDateString('en-US', options);
+  };
+
   const generateCalendarDays = (): Date[] => {
     const today = new Date();
     const days: Date[] = [];
@@ -265,12 +284,14 @@ export default function SeatReservation() {
       const searchData = {
         from: reservationData.from,
         to: reservationData.to,
-        date: reservationData.date,
+        date: formatDateForAPI(selectedDate),
         numberOfSeats: parseInt(reservationData.numberOfSeats),
         service: reservationData.service?.code
       };
 
-      const response = await fetch(`${baseUrl}/seat-reservations/search-buses`, {
+      console.log("Searching with data:", searchData);
+
+      const response = await fetch(`${baseUrl}/seat-reservation/search-buses`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -287,7 +308,7 @@ export default function SeatReservation() {
       if (result.availableBuses && result.availableBuses.length > 0) {
         // Navigate to search results with the data
         router.push({
-          pathname: '/Seat_Select',
+          pathname: '/Available_Bus',
           params: {
             buses: JSON.stringify(result.availableBuses),
             searchData: JSON.stringify(searchData)

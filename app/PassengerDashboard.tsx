@@ -90,7 +90,7 @@ export default function PassengerDashboard() {
       subtitle: "Live bus location & ETA",
       icon: "location-outline",
       gradientColors: ["#f093fb", "#f5576c"],
-      route: "/RealTimeTrackingMap",
+      route: "/Seat_Select",
     },
     {
       id: "3",
@@ -115,7 +115,7 @@ export default function PassengerDashboard() {
 
   const handleNotifications = () => {
     console.log("Notifications pressed");
-    // router.push('/notifications');
+    // router.push('/Seat_Select');
   };
 
   const handleLogout = () => {

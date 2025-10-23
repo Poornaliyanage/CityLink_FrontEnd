@@ -1,241 +1,379 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
 import {
-    FlatList,
-    SafeAreaView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  Text,
+  TouchableOpacity,
+  View
 } from "react-native";
 
-interface BusItem {
-  id: string;
-  route: string;
-  transport: string;
-  model: string;
-  plate: string;
-  departure: string;
-  arrival: string;
-  price: string;
+const { width } = Dimensions.get("window");
+
+interface Bus {
+  bus_id: string;
+  registration_number: string;
+  service: string;
+  route_name: string;
+  route_number: string;
+  start_point: string;
+  end_point: string;
+  price: number;
+  distance: number;
+  totalSeats: number;
+  availableSeats: number;
 }
 
-const busData: BusItem[] = [
-  {
-    id: "1",
-    route: "Kurunegala – Colombo (15N)",
-    transport: "Samantha Travels",
-    model: "LAL Viking",
-    plate: "NC 9657",
-    departure: "09:30 PM",
-    arrival: "12:15 AM",
-    price: "930",
-  },
-  {
-    id: "2",
-    route: "Kurunegala – Colombo (15N)",
-    transport: "SLTB Kurunegala Depot",
-    model: "LAL Viking",
-    plate: "NB 9878",
-    departure: "09:30 PM",
-    arrival: "12:30 AM",
-    price: "930",
-  },
-  {
-    id: "3",
-    route: "Kurunegala – Colombo (EX)",
-    transport: "Denuwara Express",
-    model: "LAL Viking AC",
-    plate: "NC 5544",
-    departure: "09:30 PM",
-    arrival: "12:00 AM",
-    price: "1050",
-  },
-];
+interface SearchData {
+  from: string;
+  to: string;
+  date: string;
+  numberOfSeats: number;
+  service: string;
+}
 
-export default function Select_Bus() {
+export default function Available_Bus() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  
+  const buses: Bus[] = params.buses ? JSON.parse(params.buses as string) : [];
+  const searchData: SearchData = params.searchData ? JSON.parse(params.searchData as string) : null;
 
-  const renderItem = ({ item }: { item: BusItem }) => (
-    <View style={styles.card}>
-      <View style={styles.row}>
-        <Text style={styles.route}>{item.route}</Text>
-        <Text style={styles.time}>{item.departure}</Text>
-      </View>
+  const getServiceLabel = (code: string) => {
+    switch(code) {
+      case 'N': return 'Normal Service';
+      case 'S': return 'Semi Luxury';
+      case 'L': return 'Luxury (A/C)';
+      case 'XL': return 'Super Luxury';
+      default: return code;
+    }
+  };
 
-      <Text style={styles.transport}>{item.transport}</Text>
+  const getServiceColor = (code: string) => {
+    switch(code) {
+      case 'N': return '#10b981';
+      case 'S': return '#3b82f6';
+      case 'L': return '#8b5cf6';
+      case 'XL': return '#f59e0b';
+      default: return '#6b7280';
+    }
+  };
 
-      <View style={styles.row}>
-        <Text style={styles.model}>{item.model}</Text>
-        <Text style={styles.plate}>{item.plate}</Text>
-      </View>
-
-      <View style={styles.priceContainer}>
-        <Text style={styles.price}>LKR {item.price}</Text>
-      </View>
-
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => router.push("/Seat_Select" as any)}
-      >
-        <LinearGradient
-          colors={["#667eea", "#764ba2"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.buttonGradient}
-        >
-          <Ionicons
-            name="bus-outline"
-            size={20}
-            color="#fff"
-            style={{ marginRight: 8 }}
-          />
-          <Text style={styles.buttonText}>Select a seat</Text>
-        </LinearGradient>
-      </TouchableOpacity>
-    </View>
-  );
+  const handleBusSelect = (bus: Bus) => {
+    // Navigate to seat selection screen
+    router.push({
+      pathname: '/Seat_Select',
+      params: {
+        bus: JSON.stringify(bus),
+        searchData: JSON.stringify(searchData)
+      }
+    });
+  };
 
   return (
     <>
-      <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
-      <LinearGradient colors={["#a8edea", "#fed6e3"]} style={{ flex: 1 }}>
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+      <LinearGradient
+        colors={["#a8edea", "#fed6e3"]}
+        style={{ flex: 1 }}
+      >
         <SafeAreaView style={{ flex: 1, paddingTop: StatusBar.currentHeight || 0 }}>
           {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()}>
-              <Ionicons name="arrow-back" size={26} color="#333" />
+          <View style={{
+            flexDirection: "row",
+            alignItems: "center",
+            padding: 20,
+            paddingBottom: 10,
+          }}>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={{
+                backgroundColor: "rgba(255,255,255,0.3)",
+                borderRadius: 16,
+                padding: 12,
+                marginRight: 16,
+              }}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="arrow-back" size={24} color="#374151" />
             </TouchableOpacity>
-            <Text style={styles.headerText}>Available Buses</Text>
+            
+            <View style={{ flex: 1 }}>
+              <Text style={{
+                fontSize: 24,
+                fontWeight: "800",
+                color: "#1f2937",
+                letterSpacing: -0.5,
+              }}>
+                Available Buses
+              </Text>
+              <Text style={{
+                fontSize: 14,
+                color: "#6b7280",
+                marginTop: 4,
+              }}>
+                {buses.length} bus{buses.length !== 1 ? 'es' : ''} found
+              </Text>
+            </View>
           </View>
 
-          {/* Info Section */}
-          <View style={styles.infoBox}>
-            <Text style={styles.infoText}>
-              Kurunegala → Colombo {"\n"}
-              Date: 24 Oct 2025 | Time: 21:30
-            </Text>
-          </View>
+          {/* Search Summary */}
+          {searchData && (
+            <View style={{
+              backgroundColor: "rgba(255, 255, 255, 0.95)",
+              marginHorizontal: 20,
+              marginBottom: 15,
+              padding: 16,
+              borderRadius: 20,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 8,
+              elevation: 4,
+            }}>
+              <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
+                <Ionicons name="location-outline" size={16} color="#667eea" />
+                <Text style={{ fontSize: 14, color: "#374151", marginLeft: 8 }}>
+                  {searchData.from} → {searchData.to}
+                </Text>
+              </View>
+              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <Ionicons name="calendar-outline" size={14} color="#6b7280" />
+                  <Text style={{ fontSize: 12, color: "#6b7280", marginLeft: 6 }}>
+                    {searchData.date}
+                  </Text>
+                </View>
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <Ionicons name="people-outline" size={14} color="#6b7280" />
+                  <Text style={{ fontSize: 12, color: "#6b7280", marginLeft: 6 }}>
+                    {searchData.numberOfSeats} seat{searchData.numberOfSeats > 1 ? 's' : ''}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
 
-          <FlatList
-            data={busData}
-            renderItem={renderItem}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.container}
+          {/* Bus List */}
+          <ScrollView
             showsVerticalScrollIndicator={false}
-          />
+            contentContainerStyle={{
+              padding: 20,
+              paddingTop: 5,
+            }}
+          >
+            {buses.map((bus, index) => (
+              <TouchableOpacity
+                key={bus.bus_id}
+                onPress={() => handleBusSelect(bus)}
+                activeOpacity={0.9}
+                style={{
+                  backgroundColor: "rgba(255, 255, 255, 0.95)",
+                  borderRadius: 24,
+                  padding: 20,
+                  marginBottom: 16,
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 12,
+                  elevation: 5,
+                }}
+              >
+                {/* Bus Header */}
+                <View style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                  marginBottom: 16,
+                }}>
+                  <View style={{ flex: 1 }}>
+                    <View style={{
+                      backgroundColor: `${getServiceColor(bus.service)}15`,
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 12,
+                      alignSelf: "flex-start",
+                      marginBottom: 8,
+                    }}>
+                      <Text style={{
+                        fontSize: 12,
+                        fontWeight: "700",
+                        color: getServiceColor(bus.service),
+                      }}>
+                        {getServiceLabel(bus.service)}
+                      </Text>
+                    </View>
+                    <Text style={{
+                      fontSize: 18,
+                      fontWeight: "700",
+                      color: "#1f2937",
+                      marginBottom: 4,
+                    }}>
+                      {bus.route_name}
+                    </Text>
+                    <Text style={{
+                      fontSize: 13,
+                      color: "#6b7280",
+                    }}>
+                      Route {bus.route_number} • {bus.registration_number}
+                    </Text>
+                  </View>
+                  
+                  <View style={{ alignItems: "flex-end" }}>
+                    <Text style={{
+                      fontSize: 24,
+                      fontWeight: "800",
+                      color: "#667eea",
+                    }}>
+                      Rs. {bus.price}
+                    </Text>
+                    <Text style={{
+                      fontSize: 11,
+                      color: "#9ca3af",
+                    }}>
+                      per seat
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Route Info */}
+                <View style={{
+                  backgroundColor: "#f9fafb",
+                  borderRadius: 16,
+                  padding: 14,
+                  marginBottom: 14,
+                }}>
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 12, color: "#6b7280", marginBottom: 4 }}>
+                        From
+                      </Text>
+                      <Text style={{ fontSize: 15, fontWeight: "600", color: "#374151" }}>
+                        {bus.start_point}
+                      </Text>
+                    </View>
+                    
+                    <View style={{
+                      backgroundColor: "#667eea",
+                      borderRadius: 20,
+                      padding: 8,
+                      marginHorizontal: 12,
+                    }}>
+                      <Ionicons name="arrow-forward" size={16} color="white" />
+                    </View>
+                    
+                    <View style={{ flex: 1, alignItems: "flex-end" }}>
+                      <Text style={{ fontSize: 12, color: "#6b7280", marginBottom: 4 }}>
+                        To
+                      </Text>
+                      <Text style={{ fontSize: 15, fontWeight: "600", color: "#374151" }}>
+                        {bus.end_point}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Bus Info Grid */}
+                <View style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  marginBottom: 16,
+                }}>
+                  <View style={{ flex: 1, alignItems: "center" }}>
+                    <View style={{
+                      backgroundColor: "#f0fdf4",
+                      borderRadius: 12,
+                      padding: 8,
+                      marginBottom: 6,
+                    }}>
+                      <Ionicons name="checkmark-circle" size={20} color="#10b981" />
+                    </View>
+                    <Text style={{ fontSize: 11, color: "#6b7280", marginBottom: 2 }}>
+                      Available
+                    </Text>
+                    <Text style={{ fontSize: 16, fontWeight: "700", color: "#10b981" }}>
+                      {bus.availableSeats}
+                    </Text>
+                  </View>
+                  
+                  <View style={{
+                    width: 1,
+                    backgroundColor: "#e5e7eb",
+                    marginHorizontal: 8,
+                  }} />
+                  
+                  <View style={{ flex: 1, alignItems: "center" }}>
+                    <View style={{
+                      backgroundColor: "#eff6ff",
+                      borderRadius: 12,
+                      padding: 8,
+                      marginBottom: 6,
+                    }}>
+                      <Ionicons name="car-outline" size={20} color="#3b82f6" />
+                    </View>
+                    <Text style={{ fontSize: 11, color: "#6b7280", marginBottom: 2 }}>
+                      Total Seats
+                    </Text>
+                    <Text style={{ fontSize: 16, fontWeight: "700", color: "#374151" }}>
+                      {bus.totalSeats}
+                    </Text>
+                  </View>
+                  
+                  <View style={{
+                    width: 1,
+                    backgroundColor: "#e5e7eb",
+                    marginHorizontal: 8,
+                  }} />
+                  
+                  <View style={{ flex: 1, alignItems: "center" }}>
+                    <View style={{
+                      backgroundColor: "#fef3c7",
+                      borderRadius: 12,
+                      padding: 8,
+                      marginBottom: 6,
+                    }}>
+                      <Ionicons name="navigate-outline" size={20} color="#f59e0b" />
+                    </View>
+                    <Text style={{ fontSize: 11, color: "#6b7280", marginBottom: 2 }}>
+                      Distance
+                    </Text>
+                    <Text style={{ fontSize: 16, fontWeight: "700", color: "#374151" }}>
+                      {bus.distance} km
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Select Button */}
+                <LinearGradient
+                  colors={['#667eea', '#764ba2']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={{
+                    borderRadius: 16,
+                    padding: 14,
+                    alignItems: "center",
+                  }}
+                >
+                  <Text style={{
+                    fontSize: 15,
+                    fontWeight: "700",
+                    color: "white",
+                    letterSpacing: 0.5,
+                  }}>
+                    Select Seats →
+                  </Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            ))}
+
+            <View style={{ height: 20 }} />
+          </ScrollView>
         </SafeAreaView>
       </LinearGradient>
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-  },
-  headerText: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#1f2937",
-    marginLeft: 12,
-  },
-  infoBox: {
-    backgroundColor: "rgba(255,255,255,0.9)",
-    marginHorizontal: 20,
-    borderRadius: 16,
-    padding: 12,
-    marginBottom: 16,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 3 },
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  infoText: {
-    fontSize: 16,
-    color: "#374151",
-    textAlign: "center",
-    fontWeight: "500",
-  },
-  card: {
-    backgroundColor: "#B39DDB",
-    borderRadius: 18,
-    padding: 18,
-    marginBottom: 14,
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowOffset: { width: 0, height: 3 },
-    shadowRadius: 5,
-    elevation: 4,
-  },
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  route: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#000",
-  },
-  time: {
-    fontSize: 15,
-    fontWeight: "bold",
-    color: "#000",
-  },
-  transport: {
-    fontSize: 14,
-    color: "#4A4A4A",
-    marginTop: 4,
-  },
-  model: {
-    fontSize: 13,
-    color: "#4A4A4A",
-    marginTop: 4,
-  },
-  plate: {
-    fontSize: 13,
-    color: "#4A4A4A",
-    marginTop: 4,
-  },
-  priceContainer: {
-    alignItems: "center",
-    marginVertical: 10,
-  },
-  price: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    paddingVertical: 6,
-    paddingHorizontal: 20,
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#333",
-  },
-  button: {
-    marginTop: 8,
-  },
-  buttonGradient: {
-    borderRadius: 16,
-    paddingVertical: 12,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 15,
-    fontWeight: "700",
-  },
-});
