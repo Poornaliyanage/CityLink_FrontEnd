@@ -3,19 +3,20 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    Alert,
-    Animated,
-    Dimensions,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Dimensions,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from "react-native";
 
 const { width, height } = Dimensions.get("window");
@@ -36,9 +37,18 @@ interface ReservationData {
   numberOfSeats: string;
 }
 
+interface Bus {
+  bus_id: string;
+  permit_no: string;
+  service: string;
+  availableSeats: number;
+  price: number;
+}
+
 export default function SeatReservation() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingLocations, setIsLoadingLocations] = useState(true);
   const [showCalendar, setShowCalendar] = useState(false);
   const [showServiceDropdown, setShowServiceDropdown] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -57,6 +67,13 @@ export default function SeatReservation() {
   const cardSlide = useRef(new Animated.Value(100)).current;
   const cardOpacity = useRef(new Animated.Value(0)).current;
   const formOpacity = useRef(new Animated.Value(0)).current;
+
+  const [startLocations, setStartLocations] = useState<string[]>([]);
+  const [endLocations, setEndLocations] = useState<string[]>([]);
+  const [showStartDropdown, setShowStartDropdown] = useState(false);
+  const [showEndDropdown, setShowEndDropdown] = useState(false);
+  
+  const baseUrl = "http://172.20.10.6:5000/api";
 
   const serviceTypes: ServiceType[] = [
     {
@@ -90,6 +107,7 @@ export default function SeatReservation() {
   ];
 
   useEffect(() => {
+    fetchLocations();
     // Header animation
     Animated.parallel([
       Animated.spring(headerScale, {
@@ -127,6 +145,33 @@ export default function SeatReservation() {
       }).start();
     }, 600);
   }, []);
+
+  const fetchLocations = async () => {
+    setIsLoadingLocations(true);
+    try {
+      const [startResponse, endResponse] = await Promise.all([
+        fetch(`${baseUrl}/seat-reservations/start-locations`),
+        fetch(`${baseUrl}/seat-reservations/end-locations`)
+      ]);
+
+      if (startResponse.ok && endResponse.ok) {
+        const startData = await startResponse.json();
+        const endData = await endResponse.json();
+        console.log("Start data:", startData);
+        console.log("End data:", endData);
+        
+        setStartLocations(startData.startLocations || []);
+        setEndLocations(endData.endLocations || []);
+      } else {
+        throw new Error('Failed to fetch locations');
+      }
+    } catch (error) {
+      console.error("Error fetching locations:", error);
+      Alert.alert("Error", "Failed to load locations. Please try again.");
+    } finally {
+      setIsLoadingLocations(false);
+    }
+  };
 
   const updateReservationData = (field: keyof ReservationData, value: any) => {
     setReservationData(prev => ({
@@ -170,17 +215,26 @@ export default function SeatReservation() {
     setShowServiceDropdown(false);
   };
 
+  const handleLocationSelect = (type: 'from' | 'to', location: string) => {
+    updateReservationData(type, location);
+    if (type === 'from') {
+      setShowStartDropdown(false);
+    } else {
+      setShowEndDropdown(false);
+    }
+  };
+
   const validateForm = (): boolean => {
     if (!reservationData.date) {
       Alert.alert("Error", "Please select a date");
       return false;
     }
     if (!reservationData.from.trim()) {
-      Alert.alert("Error", "Please enter departure city");
+      Alert.alert("Error", "Please select departure city");
       return false;
     }
     if (!reservationData.to.trim()) {
-      Alert.alert("Error", "Please enter destination city");
+      Alert.alert("Error", "Please select destination city");
       return false;
     }
     if (reservationData.from.toLowerCase() === reservationData.to.toLowerCase()) {
@@ -202,29 +256,56 @@ export default function SeatReservation() {
     return true;
   };
 
-  const handleSearch = () => {
+  const handleSearch = async () => {
     if (!validateForm()) return;
 
     setIsLoading(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
-      console.log("Search data:", reservationData);
-      Alert.alert(
-        "Search Results",
-        `Searching buses from ${reservationData.from} to ${reservationData.to} on ${reservationData.date}`,
-        [
-          {
-            text: "View Results",
-            onPress: () => {
-              // Navigate to search results
-              // router.push('/search-results');
-            }
+    try {
+      const searchData = {
+        from: reservationData.from,
+        to: reservationData.to,
+        date: reservationData.date,
+        numberOfSeats: parseInt(reservationData.numberOfSeats),
+        service: reservationData.service?.code
+      };
+
+      const response = await fetch(`${baseUrl}/seat-reservations/search-buses`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(searchData),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Search failed');
+      }
+
+      if (result.availableBuses && result.availableBuses.length > 0) {
+        // Navigate to search results with the data
+        router.push({
+          pathname: '/Seat_Select',
+          params: {
+            buses: JSON.stringify(result.availableBuses),
+            searchData: JSON.stringify(searchData)
           }
-        ]
-      );
-    }, 2000);
+        });
+      } else {
+        Alert.alert(
+          "No Buses Found",
+          result.message || "No available buses found for your search criteria.",
+          [{ text: "OK" }]
+        );
+      }
+    } catch (error: any) {
+      console.error("Search error:", error);
+      Alert.alert("Error", error.message || "Failed to search for buses");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleGoBack = () => {
@@ -237,6 +318,65 @@ export default function SeatReservation() {
     updateReservationData("to", temp);
   };
 
+  const DropdownField = ({ 
+    label, 
+    placeholder, 
+    value, 
+    icon,
+    onPress,
+    isLoading = false
+  }: any) => (
+    <View style={{ marginBottom: 20 }}>
+      <Text style={{
+        fontSize: 14,
+        fontWeight: "600",
+        color: "#374151",
+        marginBottom: 8,
+      }}>
+        {label}
+      </Text>
+      <TouchableOpacity
+        onPress={onPress}
+        activeOpacity={0.8}
+        disabled={isLoading}
+      >
+        <View style={{
+          backgroundColor: "#f9fafb",
+          borderRadius: 16,
+          paddingHorizontal: 16,
+          paddingVertical: 16,
+          borderWidth: 1,
+          borderColor: value ? "#667eea" : "#e5e7eb",
+          opacity: isLoading ? 0.6 : 1,
+        }}>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <Ionicons
+              name={icon}
+              size={20}
+              color={value ? "#667eea" : "#9ca3af"}
+              style={{ marginRight: 12 }}
+            />
+            {isLoading ? (
+              <ActivityIndicator size="small" color="#667eea" style={{ marginRight: 8 }} />
+            ) : null}
+            <Text style={{
+              flex: 1,
+              fontSize: 16,
+              color: value ? "#1f2937" : "#9ca3af",
+            }}>
+              {value || placeholder}
+            </Text>
+            <Ionicons
+              name="chevron-down-outline"
+              size={20}
+              color="#9ca3af"
+            />
+          </View>
+        </View>
+      </TouchableOpacity>
+    </View>
+  );
+
   const InputField = ({ 
     label, 
     placeholder, 
@@ -246,7 +386,9 @@ export default function SeatReservation() {
     onPress,
     editable = true,
     rightIcon,
-    onRightIconPress
+    onRightIconPress,
+    keyboardType = "default",
+    maxLength
   }: any) => (
     <View style={{ marginBottom: 20 }}>
       <Text style={{
@@ -288,21 +430,122 @@ export default function SeatReservation() {
               value={value}
               onChangeText={onChangeText}
               editable={editable}
-              autoCapitalize="words"
+              keyboardType={keyboardType}
+              maxLength={maxLength}
             />
             {rightIcon && (
-              <TouchableOpacity onPress={onRightIconPress} style={{ padding: 4 }}>
-                <Ionicons
-                  name={rightIcon}
-                  size={20}
-                  color="#9ca3af"
-                />
-              </TouchableOpacity>
+              <Ionicons
+                name={rightIcon}
+                size={20}
+                color="#9ca3af"
+              />
             )}
           </View>
         </View>
       </TouchableOpacity>
     </View>
+  );
+
+  const LocationDropdown = ({ visible, locations, onSelect, onClose, type }: {
+    visible: boolean;
+    locations: string[];
+    onSelect: (location: string) => void;
+    onClose: () => void;
+    type: 'from' | 'to';
+  }) => (
+    <Modal
+      visible={visible}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <View style={{
+        flex: 1,
+        backgroundColor: "rgba(0,0,0,0.5)",
+        justifyContent: "flex-end",
+      }}>
+        <View style={{
+          backgroundColor: "white",
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
+          padding: 24,
+          maxHeight: height * 0.7,
+        }}>
+          <View style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 20,
+          }}>
+            <Text style={{
+              fontSize: 20,
+              fontWeight: "700",
+              color: "#1f2937",
+            }}>
+              Select {type === 'from' ? 'Departure City' : 'Destination City'}
+            </Text>
+            <TouchableOpacity onPress={onClose}>
+              <Ionicons name="close-circle-outline" size={28} color="#6b7280" />
+            </TouchableOpacity>
+          </View>
+          
+          {locations.length === 0 ? (
+            <View style={{
+              padding: 40,
+              alignItems: "center",
+              justifyContent: "center",
+            }}>
+              <Ionicons name="location-outline" size={48} color="#d1d5db" />
+              <Text style={{
+                fontSize: 16,
+                color: "#6b7280",
+                marginTop: 12,
+                textAlign: "center",
+              }}>
+                No locations available
+              </Text>
+            </View>
+          ) : (
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {locations.map((location: string, index: number) => (
+                <TouchableOpacity
+                  key={index}
+                  onPress={() => onSelect(location)}
+                  style={{
+                    padding: 16,
+                    borderRadius: 12,
+                    backgroundColor: reservationData[type] === location ? "rgba(102, 126, 234, 0.1)" : "transparent",
+                    marginBottom: 8,
+                    borderWidth: 1,
+                    borderColor: reservationData[type] === location ? "#667eea" : "transparent",
+                  }}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <Ionicons 
+                      name={type === 'from' ? "location-outline" : "flag-outline"} 
+                      size={20} 
+                      color={reservationData[type] === location ? "#667eea" : "#6b7280"}
+                      style={{ marginRight: 12 }}
+                    />
+                    <Text style={{
+                      fontSize: 16,
+                      fontWeight: reservationData[type] === location ? "600" : "400",
+                      color: "#1f2937",
+                      flex: 1,
+                    }}>
+                      {location}
+                    </Text>
+                    {reservationData[type] === location && (
+                      <Ionicons name="checkmark-circle" size={24} color="#667eea" />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
+        </View>
+      </View>
+    </Modal>
   );
 
   const CalendarModal = () => {
@@ -576,21 +819,24 @@ export default function SeatReservation() {
                     icon="calendar-outline"
                     editable={false}
                     onPress={() => setShowCalendar(true)}
+                    rightIcon="chevron-down-outline"
                   />
 
-                  {/* From City */}
-                  <InputField
+                  {/* From City - Dropdown Only */}
+                  <DropdownField
                     label="From"
-                    placeholder="Enter departure city"
+                    placeholder="Select departure city"
                     value={reservationData.from}
-                    onChangeText={(text: string) => updateReservationData("from", text)}
                     icon="location-outline"
+                    onPress={() => setShowStartDropdown(true)}
+                    isLoading={isLoadingLocations}
                   />
 
                   {/* Swap Cities Button */}
                   <View style={{ alignItems: "center", marginVertical: -10, zIndex: 1 }}>
                     <TouchableOpacity
                       onPress={swapCities}
+                      disabled={!reservationData.from || !reservationData.to}
                       style={{
                         backgroundColor: "#667eea",
                         borderRadius: 20,
@@ -600,6 +846,7 @@ export default function SeatReservation() {
                         shadowOpacity: 0.3,
                         shadowRadius: 4,
                         elevation: 4,
+                        opacity: (!reservationData.from || !reservationData.to) ? 0.5 : 1,
                       }}
                       activeOpacity={0.8}
                     >
@@ -607,13 +854,14 @@ export default function SeatReservation() {
                     </TouchableOpacity>
                   </View>
 
-                  {/* To City */}
-                  <InputField
+                  {/* To City - Dropdown Only */}
+                  <DropdownField
                     label="To"
-                    placeholder="Enter destination city"
+                    placeholder="Select destination city"
                     value={reservationData.to}
-                    onChangeText={(text: string) => updateReservationData("to", text)}
                     icon="flag-outline"
+                    onPress={() => setShowEndDropdown(true)}
+                    isLoading={isLoadingLocations}
                   />
 
                   {/* Service Type */}
@@ -672,91 +920,91 @@ export default function SeatReservation() {
                 </Animated.View>
 
                 {/* Search Button */}
-                <TouchableOpacity
-                  style={{
-                    borderRadius: 20,
-                    shadowColor: "#4facfe",
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.3,
-                    shadowRadius: 8,
-                    elevation: 6,
-                    opacity: isLoading ? 0.7 : 1,
-                  }}
-                  activeOpacity={0.8}
-                  onPress={handleSearch}
-                  disabled={isLoading}
-                >
-                  <LinearGradient
-                    colors={['#4facfe', '#00f2fe']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
+                  <TouchableOpacity
                     style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      paddingVertical: 18,
-                      paddingHorizontal: 24,
                       borderRadius: 20,
+                      shadowColor: "#4facfe",
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.3,
+                      shadowRadius: 8,
+                      elevation: 6,
+                      opacity: isLoading ? 0.7 : 1,
                     }}
+                    activeOpacity={0.8}
+                    onPress={handleSearch}
+                    disabled={isLoading}
                   >
-                    {isLoading ? (
-                      <>
-                        <View
-                          style={{
-                            width: 20,
-                            height: 20,
-                            borderWidth: 2,
-                            borderColor: "white",
-                            borderTopColor: "transparent",
-                            borderRadius: 10,
-                            marginRight: 12,
-                          }}
-                        />
-                        <Text
-                          style={{
-                            fontSize: 17,
-                            fontWeight: "700",
-                            color: "white",
-                            letterSpacing: 0.5,
-                          }}
-                        >
-                          Searching...
-                        </Text>
-                      </>
-                    ) : (
-                      <>
-                        <Ionicons
-                          name="search-outline"
-                          size={24}
-                          color="white"
-                          style={{ marginRight: 12 }}
-                        />
-                        <Text
-                          style={{
-                            fontSize: 17,
-                            fontWeight: "700",
-                            color: "white",
-                            letterSpacing: 0.5,
-                          }}
-                        >
-                          Search Buses
-                        </Text>
-                      </>
-                    )}
-                  </LinearGradient>
-                </TouchableOpacity>
-              </Animated.View>
+                    <LinearGradient
+                      colors={['#4facfe', '#00f2fe']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        paddingVertical: 18,
+                        paddingHorizontal: 24,
+                        borderRadius: 20,
+                      }}
+                    >
+                      {isLoading ? (
+                        <>
+                          <View
+                            style={{
+                              width: 20,
+                              height: 20,
+                              borderWidth: 2,
+                              borderColor: "white",
+                              borderTopColor: "transparent",
+                              borderRadius: 10,
+                              marginRight: 12,
+                            }}
+                          />
+                          <Text
+                            style={{
+                              fontSize: 17,
+                              fontWeight: "700",
+                              color: "white",
+                              letterSpacing: 0.5,
+                            }}
+                          >
+                            Searching...
+                          </Text>
+                        </>
+                      ) : (
+                        <>
+                          <Ionicons
+                            name="search-outline"
+                            size={24}
+                            color="white"
+                            style={{ marginRight: 12 }}
+                          />
+                          <Text
+                            style={{
+                              fontSize: 17,
+                              fontWeight: "700",
+                              color: "white",
+                              letterSpacing: 0.5,
+                            }}
+                          >
+                            Search Buses
+                          </Text>
+                        </>
+                      )}
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </Animated.View>
 
-              {/* Bottom spacing */}
-              <View style={{ height: 60 }} />
-            </ScrollView>
-          </KeyboardAvoidingView>
-        </SafeAreaView>
+                {/* Bottom spacing */}
+                <View style={{ height: 60 }} />
+              </ScrollView>
+            </KeyboardAvoidingView>
+          </SafeAreaView>
 
-        {/* Modals */}
-        <CalendarModal />
-        <ServiceDropdown />
-      </LinearGradient>
-    </>
-  );
-}
+          {/* Modals */}
+          <CalendarModal />
+          <ServiceDropdown />
+        </LinearGradient>
+      </>
+    );
+  }

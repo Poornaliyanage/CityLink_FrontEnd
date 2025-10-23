@@ -29,7 +29,7 @@ type Bus = {
   conductor?: string;
 };
 
-export default function OwnerAddBus() {
+export default function BusOwnerEditBus() {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [buses, setBuses] = useState<Bus[]>([
     {
