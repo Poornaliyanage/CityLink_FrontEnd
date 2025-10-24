@@ -32,6 +32,72 @@ interface FormData {
   role: UserRole;
 }
 
+// Move InputField OUTSIDE the Register component
+const InputField = ({ 
+  label, 
+  placeholder, 
+  value, 
+  onChangeText, 
+  icon, 
+  keyboardType = "default",
+  secureTextEntry = false,
+  showPasswordToggle = false,
+  passwordVisible = false,
+  onTogglePassword = () => {}
+}: any) => (
+  <View style={{ marginBottom: 20 }}>
+    <Text style={{
+      fontSize: 14,
+      fontWeight: "600",
+      color: "#374151",
+      marginBottom: 8,
+    }}>
+      {label}
+    </Text>
+    <View style={{
+      backgroundColor: "#f9fafb",
+      borderRadius: 16,
+      paddingHorizontal: 16,
+      paddingVertical: 16,
+      borderWidth: 1,
+      borderColor: value ? "#667eea" : "#e5e7eb",
+    }}>
+      <View style={{ flexDirection: "row", alignItems: "center" }}>
+        <Ionicons
+          name={icon}
+          size={20}
+          color={value ? "#667eea" : "#9ca3af"}
+          style={{ marginRight: 12 }}
+        />
+        <TextInput
+          style={{
+            flex: 1,
+            fontSize: 16,
+            color: "#1f2937",
+          }}
+          placeholder={placeholder}
+          placeholderTextColor="#9ca3af"
+          value={value}
+          onChangeText={onChangeText}
+          keyboardType={keyboardType}
+          autoCapitalize={keyboardType === "email-address" ? "none" : "words"}
+          autoCorrect={false}
+          secureTextEntry={secureTextEntry}
+        />
+        {showPasswordToggle && (
+          <TouchableOpacity onPress={onTogglePassword} style={{ padding: 4 }}>
+            <Ionicons
+              name={passwordVisible ? "eye-outline" : "eye-off-outline"}
+              size={20}
+              color="#9ca3af"
+            />
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  </View>
+);
+
 export default function Register() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -143,7 +209,7 @@ export default function Register() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("http://172.20.10.6:5000/api/auth/register", {
+      const response = await fetch("http://172.20.10.5:5000/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -175,7 +241,6 @@ export default function Register() {
       Alert.alert("Error", "Unable to connect to the server");
     }
   };
-
 
   const handleGoBack = () => {
     router.back();
@@ -264,71 +329,6 @@ export default function Register() {
       </View>
     );
   };
-
-  const InputField = ({ 
-    label, 
-    placeholder, 
-    value, 
-    onChangeText, 
-    icon, 
-    keyboardType = "default",
-    secureTextEntry = false,
-    showPasswordToggle = false,
-    passwordVisible = false,
-    onTogglePassword = () => {}
-  }: any) => (
-    <View style={{ marginBottom: 20 }}>
-      <Text style={{
-        fontSize: 14,
-        fontWeight: "600",
-        color: "#374151",
-        marginBottom: 8,
-      }}>
-        {label}
-      </Text>
-      <View style={{
-        backgroundColor: "#f9fafb",
-        borderRadius: 16,
-        paddingHorizontal: 16,
-        paddingVertical: 16,
-        borderWidth: 1,
-        borderColor: value ? "#667eea" : "#e5e7eb",
-      }}>
-        <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <Ionicons
-            name={icon}
-            size={20}
-            color={value ? "#667eea" : "#9ca3af"}
-            style={{ marginRight: 12 }}
-          />
-          <TextInput
-            style={{
-              flex: 1,
-              fontSize: 16,
-              color: "#1f2937",
-            }}
-            placeholder={placeholder}
-            placeholderTextColor="#9ca3af"
-            value={value}
-            onChangeText={onChangeText}
-            keyboardType={keyboardType}
-            autoCapitalize={keyboardType === "email-address" ? "none" : "words"}
-            autoCorrect={false}
-            secureTextEntry={secureTextEntry}
-          />
-          {showPasswordToggle && (
-            <TouchableOpacity onPress={onTogglePassword} style={{ padding: 4 }}>
-              <Ionicons
-                name={passwordVisible ? "eye-outline" : "eye-off-outline"}
-                size={20}
-                color="#9ca3af"
-              />
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-    </View>
-  );
 
   return (
     <>
@@ -538,6 +538,7 @@ export default function Register() {
                     value={formData.email}
                     onChangeText={(text: string) => updateFormData("email", text)}
                     icon="mail-outline"
+                    keyboardType="email-address"
                   />
 
                   <InputField

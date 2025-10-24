@@ -82,7 +82,7 @@ export default function ConductorDashboard() {
       subtitle: "Check schedules and routes",
       icon: "time-outline",
       gradientColors: ["#ea669bff", "#764ba2"],
-      route: "/timetable",
+      route: "/BusTimeTable",
     },
     {
       id: "2",
@@ -95,7 +95,7 @@ export default function ConductorDashboard() {
     {
       id: "3",
       title: "View Seat Reservations",
-      subtitle: "Book your preferred seat",
+      subtitle: "Show Booked seats",
       icon: "car-outline",
       gradientColors: ["#4facfe", "#00f2fe"],
       route: "/SeatReservation",

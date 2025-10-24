@@ -1,368 +1,407 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { NavigationProp, useNavigation } from "@react-navigation/native";
-import * as DocumentPicker from "expo-document-picker";
+import { Picker } from "@react-native-picker/picker";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Animated,
   Modal,
   SafeAreaView,
   ScrollView,
   StatusBar,
+  StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 
-type RootStackParamList = {
-  OwnerDashboard: undefined;
-};
+const API_URL = "http://172.20.10.5:5000/api/buses";
 
 type Bus = {
-  id: string;
-  number: string;
-  route: string;
-  time: string;
-  permit?: string;
-  conductor?: string;
+  bus_id: number;
+  registration_number: string;
+  route_name?: string;
+  permit_link?: string;
+  conductor_name?: string;
+  seat_count?: number | string;
+  service?: string;
+  start_point?: string;
+  end_point?: string;
+  conductor_phone?: string;
+  is_active?: boolean;
 };
 
 export default function BusOwnerEditBus() {
-  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
-  const [buses, setBuses] = useState<Bus[]>([
-    {
-      id: "1",
-      number: "NB-1234",
-      route: "Kandy → Colombo",
-      time: "08:00 AM",
-      permit: "permit.pdf",
-      conductor: "John Doe",
-    },
-  ]);
-
-  const [newBus, setNewBus] = useState<Bus>({
-    id: "",
-    number: "",
-    route: "",
-    time: "",
-    permit: "",
-    conductor: "",
-  });
-
+  const [buses, setBuses] = useState<Bus[]>([]);
+  const [loading, setLoading] = useState(true);
   const [editBus, setEditBus] = useState<Bus | null>(null);
-  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [saving, setSaving] = useState(false);
 
-  // Animation refs
-  const headerScale = useRef(new Animated.Value(0.8)).current;
-  const headerOpacity = useRef(new Animated.Value(0)).current;
-  const cardSlide = useRef(new Animated.Value(80)).current;
-  const cardOpacity = useRef(new Animated.Value(0)).current;
+  const fetchBuses = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_URL}/withDetails`);
+      const data = await response.json();
+      if (data.success) {
+        setBuses(data.buses);
+      } else {
+        Alert.alert("Error", data.message || "Failed to load buses");
+      }
+    } catch (error) {
+      console.error("Fetch error:", error);
+      Alert.alert("Error", "Could not fetch buses");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.spring(headerScale, { toValue: 1, useNativeDriver: true }),
-      Animated.timing(headerOpacity, { toValue: 1, duration: 800, useNativeDriver: true }),
-    ]).start();
-
-    setTimeout(() => {
-      Animated.parallel([
-        Animated.spring(cardSlide, { toValue: 0, useNativeDriver: true }),
-        Animated.timing(cardOpacity, { toValue: 1, duration: 700, useNativeDriver: true }),
-      ]).start();
-    }, 300);
+    fetchBuses();
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: true,
+    }).start();
   }, []);
 
-  const pickPermit = async <T extends Bus | null>(busSetter: React.Dispatch<React.SetStateAction<T>>) => {
-    const result = await DocumentPicker.getDocumentAsync({ type: "application/pdf" });
-    if ("uri" in result && result.uri) {
-      const name = "name" in result && typeof (result as any).name === "string" ? (result as any).name : "";
-      busSetter((prev) => (prev ? ({ ...prev, permit: name } as T) : prev));
-    }
-  };
+  // =========================
+  // UPDATE BUS
+  // =========================
+  const updateBus = async () => {
+    if (!editBus) return;
 
-  const addBus = () => {
-    if (!newBus.number || !newBus.route || !newBus.time || !newBus.permit || !newBus.conductor) {
-      Alert.alert("Error", "Please fill all fields, add a conductor and upload a permit PDF");
+    if (
+      !editBus.registration_number ||
+      !editBus.seat_count ||
+      !editBus.start_point ||
+      !editBus.end_point ||
+      !editBus.conductor_phone ||
+      !editBus.permit_link
+    ) {
+      Alert.alert("Error", "Please fill all fields before updating the bus");
       return;
     }
-    setBuses([...buses, { ...newBus, id: Date.now().toString() }]);
-    setNewBus({ id: "", number: "", route: "", time: "", permit: "", conductor: "" });
-  };
 
-  const updateBus = () => {
-    if (editBus) {
-      if (!editBus.number || !editBus.route || !editBus.time || !editBus.permit || !editBus.conductor) {
-        Alert.alert("Error", "Please fill all fields");
-        return;
+    setSaving(true);
+    try {
+      const body = {
+        registration_number: editBus.registration_number.trim(),
+        permit_link: editBus.permit_link.trim(),
+        seat_count: parseInt(editBus.seat_count.toString()) || 0,
+        start_point: editBus.start_point.trim(),
+        end_point: editBus.end_point.trim(),
+        service: editBus.service,
+        conductor_phone: editBus.conductor_phone.trim(),
+        is_active: editBus.is_active,
+      };
+
+      const response = await fetch(`${API_URL}/${editBus.bus_id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        Alert.alert("✅ Success", "Bus updated successfully");
+        setBuses((prev) =>
+          prev.map((bus) => (bus.bus_id === editBus.bus_id ? { ...bus, ...editBus } : bus))
+        );
+        setModalVisible(false);
+      } else {
+        Alert.alert("Error", data.message || "Failed to update bus");
       }
-      setBuses(buses.map((bus) => (bus.id === editBus.id ? editBus : bus)));
-      setEditBus(null);
-      setIsModalVisible(false);
+    } catch (error) {
+      console.error("Update error:", error);
+      Alert.alert("Error", "Could not connect to server");
+    } finally {
+      setSaving(false);
     }
   };
 
-  const deleteBus = (id: string) => {
-    setBuses(buses.filter((bus) => bus.id !== id));
+  // =========================
+  // DELETE BUS
+  // =========================
+  const deleteBus = async (bus_id: number) => {
+    Alert.alert("Confirm Delete", "Are you sure you want to delete this bus?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            const response = await fetch(`${API_URL}/${bus_id}`, { method: "DELETE" });
+            const data = await response.json();
+            if (data.success) {
+              setBuses((prev) => prev.filter((b) => b.bus_id !== bus_id));
+            } else {
+              Alert.alert("Error", data.message || "Failed to delete bus");
+            }
+          } catch (error) {
+            console.error("Delete error:", error);
+            Alert.alert("Error", "Could not delete bus");
+          }
+        },
+      },
+    ]);
   };
 
-  const openEditModal = (bus: Bus) => {
-    setEditBus(bus);
-    setIsModalVisible(true);
-  };
+  if (loading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color="#0A84FF" />
+        <Text>Loading buses...</Text>
+      </View>
+    );
+  }
 
   return (
-    <>
-      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
-      <LinearGradient colors={["#a8edea", "#fed6e3"]} style={{ flex: 1 }}>
-        <SafeAreaView style={{ flex: 1, paddingTop: StatusBar.currentHeight || 0 }}>
-          <ScrollView
-            contentContainerStyle={{ flexGrow: 1, padding: 20, paddingTop: 40 }}
-            showsVerticalScrollIndicator={false}
-          >
-            {/* Header */}
-            <Animated.View style={{ transform: [{ scale: headerScale }], opacity: headerOpacity, marginBottom: 30 }}>
-              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <View
-                    style={{
-                      width: 50,
-                      height: 50,
-                      borderRadius: 25,
-                      backgroundColor: "white",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      marginRight: 12,
-                      shadowColor: "#000",
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.1,
-                      shadowRadius: 4,
-                      elevation: 3,
+    <LinearGradient colors={["#f5f7fa", "#c3cfe2"]} style={{ flex: 1 }}>
+      <SafeAreaView style={{ flex: 1, paddingTop: StatusBar.currentHeight || 0 }}>
+        <ScrollView contentContainerStyle={{ padding: 20 }}>
+          <Text style={styles.title}>Manage Your Buses</Text>
+
+          {buses.length === 0 ? (
+            <Text style={styles.noBusText}>No buses found.</Text>
+          ) : (
+            buses.map((bus) => (
+              <Animated.View key={bus.bus_id} style={[styles.card, { opacity: fadeAnim }]}>
+                <View style={styles.iconContainer}>
+                  <MaterialCommunityIcons name="bus" size={32} color="#0A84FF" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.regNo}>{bus.registration_number}</Text>
+                  <Text>Route: {bus.route_name || "N/A"}</Text>
+                  <Text>Conductor: {bus.conductor_name || "Not Assigned"}</Text>
+                  <Text>Permit: {bus.permit_link || "None"}</Text>
+                </View>
+                <View style={{ flexDirection: "row", gap: 6 }}>
+                  <TouchableOpacity
+                    style={[styles.actionBtn, { backgroundColor: "#fbbf24" }]}
+                    onPress={() => {
+                      setEditBus(bus);
+                      setModalVisible(true);
                     }}
                   >
-                    <MaterialCommunityIcons name="bus" size={26} color="#667eea" />
-                  </View>
-                  <View>
-                    <Text style={{ fontSize: 16, color: "#6b7280", fontWeight: "500" }}>Manage Your Fleet</Text>
-                    <Text style={{ fontSize: 20, fontWeight: "800", color: "#1f2937" }}>Add / Edit Buses</Text>
-                  </View>
+                    <Ionicons name="pencil-outline" size={20} color="white" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.actionBtn, { backgroundColor: "#ef4444" }]}
+                    onPress={() => deleteBus(bus.bus_id)}
+                  >
+                    <Ionicons name="trash-outline" size={20} color="white" />
+                  </TouchableOpacity>
                 </View>
-                <TouchableOpacity
-                  onPress={() => navigation.navigate("OwnerDashboard")}
-                  style={{ backgroundColor: "rgba(255, 255, 255, 0.3)", borderRadius: 16, padding: 12 }}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="person-outline" size={20} color="#374151" />
-                </TouchableOpacity>
-              </View>
-            </Animated.View>
+              </Animated.View>
+            ))
+          )}
 
-            {/* Bus Cards */}
-            <Animated.View style={{ transform: [{ translateY: cardSlide }], opacity: cardOpacity }}>
-              {buses.map((bus) => (
-                <Animated.View
-                  key={bus.id}
-                  style={{ marginBottom: 16, transform: [{ translateY: cardSlide }], opacity: cardOpacity }}
-                >
-                  <LinearGradient
-                    colors={["#a8edea", "#fed6e3"]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
+          {/* ✅ EDIT BUS MODAL */}
+          <Modal visible={modalVisible} animationType="slide">
+            <LinearGradient colors={["#f8fafc", "#e2e8f0"]} style={{ flex: 1 }}>
+              <SafeAreaView style={{ flex: 1 }}>
+                <ScrollView contentContainerStyle={{ padding: 20 }}>
+                  <Text style={styles.modalTitle}>Edit Bus Details</Text>
+
+                  {/* Registration Number */}
+                  <Text style={styles.label}>Registration Number</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={editBus?.registration_number}
+                    onChangeText={(text) =>
+                      setEditBus((prev) => (prev ? { ...prev, registration_number: text } : prev))
+                    }
+                  />
+
+                  {/* Permit Link */}
+                  <Text style={styles.label}>Permit Link</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={editBus?.permit_link}
+                    /*placeholder="Enter permit link"*/
+                    onChangeText={(text) =>
+                      setEditBus((prev) => (prev ? { ...prev, permit_link: text } : prev))
+                    }
+                  />
+
+                  {/* Seat Count */}
+                  <Text style={styles.label}>Seat Count</Text>
+                  <TextInput
+                    style={styles.input}
+                    keyboardType="numeric"
+                    value={editBus?.seat_count?.toString()}
+                    onChangeText={(text) =>
+                      setEditBus((prev) => (prev ? { ...prev, seat_count: text } : prev))
+                    }
+                  />
+
+                  {/* Service Type */}
+                  <Text style={styles.label}>Service Type</Text>
+                  <View style={styles.pickerContainer}>
+                    <Picker
+                      selectedValue={editBus?.service}
+                      onValueChange={(val) =>
+                        setEditBus((prev) => (prev ? { ...prev, service: val } : prev))
+                      }
+                    >
+                      <Picker.Item label="Normal" value="N" />
+                      <Picker.Item label="Express" value="XL" />
+                      <Picker.Item label="Semi-Luxury" value="S" />
+                      <Picker.Item label="Luxury" value="L" />
+                    </Picker>
+                  </View>
+
+                  {/* Start & End Points */}
+                  <Text style={styles.label}>Start Point</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={editBus?.start_point}
+                    onChangeText={(text) =>
+                      setEditBus((prev) => (prev ? { ...prev, start_point: text } : prev))
+                    }
+                  />
+
+                  <Text style={styles.label}>End Point</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={editBus?.end_point}
+                    onChangeText={(text) =>
+                      setEditBus((prev) => (prev ? { ...prev, end_point: text } : prev))
+                    }
+                  />
+
+                  {/* Conductor Phone */}
+                  <Text style={styles.label}>Conductor Phone</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={editBus?.conductor_phone}
+                    onChangeText={(text) =>
+                      setEditBus((prev) => (prev ? { ...prev, conductor_phone: text } : prev))
+                    }
+                  />
+
+                  {/* Active Switch */}
+                  <View
                     style={{
-                      borderRadius: 20,
-                      padding: 16,
                       flexDirection: "row",
                       alignItems: "center",
                       justifyContent: "space-between",
-                      shadowColor: "#000",
-                      shadowOffset: { width: 0, height: 6 },
-                      shadowOpacity: 0.1,
-                      shadowRadius: 10,
-                      elevation: 6,
+                      marginBottom: 15,
                     }}
                   >
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 16, fontWeight: "700", color: "#1f2937" }}>{bus.number}</Text>
-                      <Text style={{ fontSize: 14, color: "#374151" }}>{bus.route}</Text>
-                      <Text style={{ fontSize: 14, color: "#374151" }}>{bus.time}</Text>
-                      <Text style={{ fontSize: 14, color: "#374151" }}>{bus.permit}</Text>
-                      <Text style={{ fontSize: 14, color: "#374151" }}>Conductor: {bus.conductor}</Text>
-                    </View>
-                    <View style={{ flexDirection: "row", gap: 8 }}>
-                      <TouchableOpacity
-                        style={{
-                          backgroundColor: "#FBBF24",
-                          borderRadius: 12,
-                          padding: 8,
-                          justifyContent: "center",
-                          alignItems: "center",
-                        }}
-                        onPress={() => openEditModal(bus)}
-                      >
-                        <Ionicons name="pencil-outline" size={20} color="white" />
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={{
-                          backgroundColor: "#EF4444",
-                          borderRadius: 12,
-                          padding: 8,
-                          justifyContent: "center",
-                          alignItems: "center",
-                        }}
-                        onPress={() => deleteBus(bus.id)}
-                      >
-                        <Ionicons name="trash-outline" size={20} color="white" />
-                      </TouchableOpacity>
-                    </View>
-                  </LinearGradient>
-                </Animated.View>
-              ))}
+                    <Text style={styles.label}>Is Active</Text>
+                    <Switch
+                      value={editBus?.is_active ?? true}
+                      onValueChange={(value) =>
+                        setEditBus((prev) => (prev ? { ...prev, is_active: value } : prev))
+                      }
+                      trackColor={{ false: "#d1d5db", true: "#2563eb" }}
+                      thumbColor={editBus?.is_active ? "#ffffff" : "#f4f3f4"}
+                    />
+                  </View>
 
-              {/* Add New Bus Card */}
-              <Animated.View style={{ marginBottom: 16, transform: [{ translateY: cardSlide }], opacity: cardOpacity }}>
-                <LinearGradient
-                  colors={["#a8edea", "#fed6e3"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={{
-                    borderRadius: 20,
-                    padding: 16,
-                    shadowColor: "#000",
-                    shadowOffset: { width: 0, height: 6 },
-                    shadowOpacity: 0.1,
-                    shadowRadius: 10,
-                    elevation: 6,
-                  }}
-                >
-                  <Text style={{ fontSize: 16, fontWeight: "700", marginBottom: 8, color: "#1f2937" }}>
-                    Add New Bus
-                  </Text>
-                  <TextInput
-                    placeholder="Bus Number"
-                    value={newBus.number}
-                    onChangeText={(text) => setNewBus({ ...newBus, number: text })}
-                    style={{ backgroundColor: "white", borderRadius: 12, padding: 10, marginBottom: 8 }}
-                  />
-                  <TextInput
-                    placeholder="Route"
-                    value={newBus.route}
-                    onChangeText={(text) => setNewBus({ ...newBus, route: text })}
-                    style={{ backgroundColor: "white", borderRadius: 12, padding: 10, marginBottom: 8 }}
-                  />
-                  <TextInput
-                    placeholder="Time"
-                    value={newBus.time}
-                    onChangeText={(text) => setNewBus({ ...newBus, time: text })}
-                    style={{ backgroundColor: "white", borderRadius: 12, padding: 10, marginBottom: 8 }}
-                  />
-                  <TextInput
-                    placeholder="Conductor Name"
-                    value={newBus.conductor}
-                    onChangeText={(text) => setNewBus({ ...newBus, conductor: text })}
-                    style={{ backgroundColor: "white", borderRadius: 12, padding: 10, marginBottom: 8 }}
-                  />
-                  <TouchableOpacity
-                    onPress={() => pickPermit(setNewBus)}
-                    style={{
-                      backgroundColor: "#667eea",
-                      borderRadius: 12,
-                      padding: 12,
-                      marginBottom: 8,
-                      alignItems: "center",
-                    }}
-                  >
-                    <Text style={{ color: "white" }}>{newBus.permit ? newBus.permit : "Upload Permit PDF"}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={addBus}
-                    style={{ backgroundColor: "#5A2DFF", borderRadius: 12, padding: 12, alignItems: "center" }}
-                  >
-                    <Text style={{ color: "white", fontWeight: "700" }}>Add Bus</Text>
-                  </TouchableOpacity>
-                </LinearGradient>
-              </Animated.View>
-            </Animated.View>
-
-            {/* Edit Bus Modal */}
-            <Modal visible={isModalVisible} transparent animationType="slide">
-              <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: 20 }}>
-                <LinearGradient
-                  colors={["#a8edea", "#fed6e3"]}
-                  style={{ borderRadius: 20, padding: 16 }}
-                >
-                  <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 12 }}>Edit Bus</Text>
-                  <TextInput
-                    placeholder="Bus Number"
-                    value={editBus?.number}
-                    onChangeText={(text) => editBus && setEditBus({ ...editBus, number: text })}
-                    style={{ backgroundColor: "white", borderRadius: 12, padding: 10, marginBottom: 8 }}
-                  />
-                  <TextInput
-                    placeholder="Route"
-                    value={editBus?.route}
-                    onChangeText={(text) => editBus && setEditBus({ ...editBus, route: text })}
-                    style={{ backgroundColor: "white", borderRadius: 12, padding: 10, marginBottom: 8 }}
-                  />
-                  <TextInput
-                    placeholder="Time"
-                    value={editBus?.time}
-                    onChangeText={(text) => editBus && setEditBus({ ...editBus, time: text })}
-                    style={{ backgroundColor: "white", borderRadius: 12, padding: 10, marginBottom: 8 }}
-                  />
-                  <TextInput
-                    placeholder="Conductor Name"
-                    value={editBus?.conductor}
-                    onChangeText={(text) => editBus && setEditBus({ ...editBus, conductor: text })}
-                    style={{ backgroundColor: "white", borderRadius: 12, padding: 10, marginBottom: 8 }}
-                  />
-                  <TouchableOpacity
-                    onPress={() => editBus && pickPermit(setEditBus)}
-                    style={{
-                      backgroundColor: "#667eea",
-                      borderRadius: 12,
-                      padding: 12,
-                      marginBottom: 8,
-                      alignItems: "center",
-                    }}
-                  >
-                    <Text style={{ color: "white" }}>{editBus?.permit ? editBus.permit : "Upload Permit PDF"}</Text>
-                  </TouchableOpacity>
-                  <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                  {/* Save / Cancel */}
+                  <View style={styles.modalActions}>
                     <TouchableOpacity
+                      style={styles.saveBtn}
                       onPress={updateBus}
-                      style={{ backgroundColor: "#5A2DFF", borderRadius: 12, padding: 12, flex: 1, marginRight: 5, alignItems: "center" }}
+                      disabled={saving}
                     >
-                      <Text style={{ color: "white", fontWeight: "700" }}>Save</Text>
+                      {saving ? (
+                        <ActivityIndicator color="#fff" />
+                      ) : (
+                        <Text style={{ color: "#fff", fontWeight: "700" }}>Save</Text>
+                      )}
                     </TouchableOpacity>
                     <TouchableOpacity
-                      onPress={() => setIsModalVisible(false)}
-                      style={{ backgroundColor: "#EF4444", borderRadius: 12, padding: 12, flex: 1, marginLeft: 5, alignItems: "center" }}
+                      style={styles.cancelBtn}
+                      onPress={() => setModalVisible(false)}
                     >
-                      <Text style={{ color: "white", fontWeight: "700" }}>Cancel</Text>
+                      <Text style={{ color: "#fff", fontWeight: "700" }}>Cancel</Text>
                     </TouchableOpacity>
                   </View>
-                </LinearGradient>
-              </View>
-            </Modal>
-
-            {/* Back Button */}
-            <View style={{ height: 40 }} />
-            <TouchableOpacity
-              onPress={() => navigation.navigate("OwnerDashboard")}
-              style={{
-                backgroundColor: "#5A2DFF",
-                paddingVertical: 14,
-                borderRadius: 12,
-                marginTop: 10,
-                alignItems: "center",
-              }}
-            >
-              <Text style={{ color: "white", fontSize: 16, fontWeight: "700" }}>Back to Dashboard</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </SafeAreaView>
-      </LinearGradient>
-    </>
+                </ScrollView>
+              </SafeAreaView>
+            </LinearGradient>
+          </Modal>
+        </ScrollView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
+
+// =====================
+// STYLES
+// =====================
+const styles = StyleSheet.create({
+  centered: { flex: 1, justifyContent: "center", alignItems: "center" },
+  title: { fontSize: 24, fontWeight: "700", textAlign: "center", marginBottom: 20 },
+  noBusText: { textAlign: "center", color: "#555", fontSize: 16 },
+  card: {
+    backgroundColor: "#fff",
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 15,
+    borderRadius: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
+    marginBottom: 15,
+  },
+  iconContainer: {
+    backgroundColor: "#e6f0ff",
+    padding: 10,
+    borderRadius: 50,
+    marginRight: 15,
+  },
+  regNo: { fontSize: 16, fontWeight: "700", color: "#0A84FF" },
+  actionBtn: {
+    borderRadius: 10,
+    padding: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  label: { color: "black", marginBottom: 5 },
+  input: {
+    backgroundColor: "white",
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 15,
+    color: "black",
+  },
+  pickerContainer: {
+    backgroundColor: "white",
+    borderRadius: 10,
+    marginBottom: 15,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "black",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  modalActions: { flexDirection: "row", justifyContent: "space-between" },
+  saveBtn: {
+    backgroundColor: "#2563eb",
+    borderRadius: 10,
+    padding: 14,
+    flex: 1,
+    marginRight: 5,
+    alignItems: "center",
+  },
+  cancelBtn: {
+    backgroundColor: "#EF4444",
+    borderRadius: 10,
+    padding: 14,
+    flex: 1,
+    marginLeft: 5,
+    alignItems: "center",
+  },
+});

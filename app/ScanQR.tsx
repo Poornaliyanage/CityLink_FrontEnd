@@ -1,9 +1,12 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Camera, CameraView } from "expo-camera";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
+
 import {
+  ActivityIndicator,
   Alert,
   Animated,
   Dimensions,
@@ -15,6 +18,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { BASE_URL } from "../config"; //import the base url from config file
 
 const { width, height } = Dimensions.get("window");
 
@@ -34,6 +38,7 @@ export default function ScanQR() {
   const [showModal, setShowModal] = useState(false);
   const [qrData, setQrData] = useState<QRData | null>(null);
   const [flashEnabled, setFlashEnabled] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   // Animation refs
   const scanLineAnim = useRef(new Animated.Value(0)).current;
@@ -84,41 +89,112 @@ export default function ScanQR() {
     setHasPermission(status === "granted");
   };
 
-  const handleBarCodeScanned = ({ data }: { type: string; data: string }) => {
-    if (scanned) return;
-    
-    setScanned(true);
-    
-    try {
-      // Parse QR data (assuming JSON format)
-      const parsedData: QRData = JSON.parse(data);
-      setQrData(parsedData);
-      
-      // Show modal with animation
-      setShowModal(true);
-      Animated.parallel([
-        Animated.spring(modalScale, {
-          toValue: 1,
-          tension: 50,
-          friction: 7,
-          useNativeDriver: true,
-        }),
-        Animated.timing(modalOpacity, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } catch (error) {
-      Alert.alert("Invalid QR Code", "The scanned QR code is not valid.");
-      setScanned(false);
-    }
-  };
+ const handleBarCodeScanned = async ({ data }: { type: string; data: string }) => {
+  if (scanned) return;
 
-  const handleConfirm = () => {
-    // Handle confirmation logic here
-    console.log("Reservation confirmed:", qrData);
-    closeModal();
+  setScanned(true);
+
+  try {
+    // QR format: bookingId_userId
+    const [bookingId, userId] = data.split("_");
+
+    if (!bookingId || !userId) throw new Error("Invalid QR format");
+
+    const token = await AsyncStorage.getItem("token");
+
+    fetch(`${BASE_URL}/api/bookings/detail/${bookingId}`, {
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    })
+
+      .then((res) => res.json())
+      .then((json) => {
+        if (!json || !json.booking_id) {
+          Alert.alert("Booking not found");
+          setScanned(false);
+          return;
+        }
+
+        // fill modal data using the correct nested structure
+        setQrData({
+          passengerName: json.passenger.name,
+          seatNumber: json.seat_number,
+          busNumber: json.bus.registration_number,
+          route: `${json.route.name} (${json.route.number})`,
+          date: json.travel_date,
+          bookingId: json.booking_id.toString(),
+        });
+
+        // show modal
+        setShowModal(true);
+        Animated.parallel([
+          Animated.spring(modalScale, {
+            toValue: 1,
+            tension: 50,
+            friction: 7,
+            useNativeDriver: true,
+          }),
+          Animated.timing(modalOpacity, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      })
+      .catch((err) => {
+        Alert.alert("Failed to fetch booking", err.message);
+        setScanned(false);
+      });
+  } catch (error) {
+    Alert.alert("Invalid QR Code", "The scanned QR code is not valid.");
+    setScanned(false);
+  }
+};
+
+
+
+
+  const handleConfirm = async () => {
+    if (!qrData?.bookingId) {
+      Alert.alert("Error", "No booking selected.");
+      return;
+    }
+
+    setConfirming(true);
+
+    try {
+      const token = await AsyncStorage.getItem("token"); // ensure AsyncStorage imported
+
+      // call the new endpoint
+      const res = await fetch(
+        `${BASE_URL}/api/bookings/${encodeURIComponent(qrData.bookingId)}/complete`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        }
+      );
+
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        console.error("Complete booking error:", res.status, json);
+        throw new Error(json.message || `Server returned ${res.status}`);
+      }
+
+      // success
+      Alert.alert("Success", "Booking marked as Completed.");
+      closeModal();
+    } catch (err: any) {
+      console.error("handleConfirm error:", err);
+      Alert.alert("Error", err.message || "Failed to update booking status.");
+      // keep modal open so conductor can retry or cancel
+    } finally {
+      setConfirming(false);
+    }
   };
 
   const closeModal = () => {
@@ -354,13 +430,19 @@ export default function ScanQR() {
 
                 {/* Action Buttons */}
                 <View style={styles.buttonContainer}>
-                  <TouchableOpacity
-                    onPress={handleConfirm}
-                    style={styles.confirmButton}
-                    activeOpacity={0.8}
-                  >
+               <TouchableOpacity
+                  onPress={handleConfirm}
+                  style={styles.confirmButton}
+                  activeOpacity={0.8}
+                  disabled={confirming}
+                >
+                  {confirming ? (
+                    <ActivityIndicator color="white" />
+                  ) : (
                     <Text style={styles.confirmButtonText}>Confirm</Text>
-                  </TouchableOpacity>
+                  )}
+                </TouchableOpacity>
+
                   
                   <TouchableOpacity
                     onPress={closeModal}

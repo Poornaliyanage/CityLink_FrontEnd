@@ -78,7 +78,7 @@ export default function OwnerDashboard() {
   const dashboardActions: DashboardAction[] = [
     {
       id: "1",
-      title: "View and Track Buses",
+      title: "Track Buses",
       subtitle: "Monitor bus locations in real-time",
       icon: "time-outline",
       gradientColors: ["#ea669bff", "#764ba2"],
@@ -86,13 +86,21 @@ export default function OwnerDashboard() {
     },
     {
       id: "2",
+      title: "Add Buses & Routes",
+      subtitle: "Expand your fleet easily",
+      icon: "location-outline",
+      gradientColors: ["#f093fb", "#f5576c"],
+      route: "/OwnerAddBus",
+    },
+    
+    {
+      id: "3",
       title: "Edit Buses & Routes",
       subtitle: "Customize your bus details",
       icon: "location-outline",
       gradientColors: ["#f093fb", "#f5576c"],
       route: "/BusOwnerEditBus",
     },
-    
   ];
 
   const handleActionPress = (action: DashboardAction) => {

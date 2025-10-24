@@ -75,7 +75,7 @@ export default function PassengerDashboard() {
     }, 300);
   }, []);
 
-  const dashboardActions: DashboardAction[] = [
+   const dashboardActions: DashboardAction[] = [
     {
       id: "1",
       title: "View Bus Time Table",
@@ -90,7 +90,7 @@ export default function PassengerDashboard() {
       subtitle: "Live bus location & ETA",
       icon: "location-outline",
       gradientColors: ["#f093fb", "#f5576c"],
-      route: "/Seat_Select",
+      route: "/RealTimeTrackingMap",
     },
     {
       id: "3",
@@ -100,7 +100,16 @@ export default function PassengerDashboard() {
       gradientColors: ["#4facfe", "#00f2fe"],
       route: "/SeatReservation",
     },
+    {
+      id: "4",
+      title: "Show Your Booking",
+      subtitle: "View QR code for your ticket",
+      icon: "qr-code-outline",
+      gradientColors: ["#43cea2", "#185a9d"],
+      route: "/ShowBooking",
+    },
   ];
+
 
   const handleActionPress = (action: DashboardAction) => {
     console.log(`${action.title} pressed`);

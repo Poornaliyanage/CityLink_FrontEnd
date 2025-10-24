@@ -18,8 +18,10 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
+import { BASE_URL } from "../config"; //import the base url from config file
 
 const { width, height } = Dimensions.get("window");
+
 
 type ServiceType = {
   id: string;
@@ -73,7 +75,7 @@ export default function SeatReservation() {
   const [showStartDropdown, setShowStartDropdown] = useState(false);
   const [showEndDropdown, setShowEndDropdown] = useState(false);
   
-  const baseUrl = "http://172.20.10.6:5000/api";
+   const baseUrl = BASE_URL; // Use the imported base URL
 
   const serviceTypes: ServiceType[] = [
     {
@@ -150,8 +152,8 @@ export default function SeatReservation() {
     setIsLoadingLocations(true);
     try {
       const [startResponse, endResponse] = await Promise.all([
-        fetch(`${baseUrl}/seat-reservation/start-locations`),
-        fetch(`${baseUrl}/seat-reservation/end-locations`)
+        fetch(`${baseUrl}/api/seat-reservation/start-locations`),
+        fetch(`${baseUrl}/api/seat-reservation/end-locations`)
       ]);
 
       if (startResponse.ok && endResponse.ok) {
@@ -291,7 +293,7 @@ export default function SeatReservation() {
 
       console.log("Searching with data:", searchData);
 
-      const response = await fetch(`${baseUrl}/seat-reservation/search-buses`, {
+      const response = await fetch(`${baseUrl}/api/seat-reservation/search-buses`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

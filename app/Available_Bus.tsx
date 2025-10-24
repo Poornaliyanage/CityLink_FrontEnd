@@ -66,7 +66,7 @@ export default function Available_Bus() {
   const handleBusSelect = (bus: Bus) => {
     // Navigate to seat selection screen
     router.push({
-      pathname: '/Seat_Select',
+      pathname: '/SeatSelect',
       params: {
         bus: JSON.stringify(bus),
         searchData: JSON.stringify(searchData)
